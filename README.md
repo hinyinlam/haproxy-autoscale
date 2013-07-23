@@ -37,12 +37,33 @@ configuration that may need to be done is the haproxy.cfg template. You can
 customize it to suit your needs or you can specify a different on on the
 command line. Make sure to read the existing template to see what variables
 will be available to use.
+<h3>Example 1:</h3>
+If you specific --security-group mysg
+
+Then in template/haproxy.cfg:
+backend java_servers
+    mode http
+    balance roundrobin
+    % for instance in instances['<b>mysg</b>']:
+    server ${ instance.id } ${ instance.private_dns_name }
+    % endfor
+
+<h3>Example 2:</h3>
+If you specific --autoscaling-group myautosg
+
+Then in template/haproxy.cfg:
+backend java_servers
+    mode http
+    balance roundrobin
+    % for instance in instances['<b>myautosg</b>']:
+    server ${ instance.id } ${ instance.private_dns_name }
+    % endfor
 
 ## Usage ##
 haproxy-autoscale was designed to be run from the load balancer itself as a cron
 job. Ideally it would be run every minute.
 
-    update-haproxy.py [-h] --security-group SECURITY_GROUP
+    update-haproxy.py [-h] [--security-group SECURITY_GROUP  | --autoscaling-group AUTO_SCALING_GROUP]
                       [SECURITY_GROUP ...] --access-key ACCESS_KEY
                       --secret-key SECRET_KEY [--output OUTPUT]
                       [--template TEMPLATE] [--haproxy HAPROXY] [--pid PID]
@@ -53,6 +74,7 @@ job. Ideally it would be run every minute.
     optional arguments:
       -h, --help            show this help message and exit
       --security-group SECURITY_GROUP [SECURITY_GROUP ...]
+      --autoscaling-group AUTO_SCALING_GROUP
       --access-key ACCESS_KEY
       --secret-key SECRET_KEY
       --output OUTPUT       Defaults to haproxy.cfg if not specified.
@@ -74,3 +96,4 @@ Example:
 * v0.1 - Initial release.
 * v0.2 - Added ability to specify multiple security groups. This version is
        **not** compatible with previous versions' templates.
+* v0.2.1 - Added Auto Scaling group option such that you can use AS that attached to an ELB to get source instances

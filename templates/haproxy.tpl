@@ -28,6 +28,6 @@ frontend java *:8080,*:8443
 backend java_servers
     mode http
     balance roundrobin
-    % for instance in instances['security-group-2']:
+    % for instance in instances['<FILL IN YOUR AutoScaling Group Here>']:
     server ${ instance.id } ${ instance.private_dns_name }
     % endfor

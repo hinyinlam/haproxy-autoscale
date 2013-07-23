@@ -7,14 +7,14 @@ import argparse
 import os
 import subprocess
 import logging
-from haproxy_autoscale import get_running_instances, file_contents, generate_haproxy_config, steal_elastic_ip
+from haproxy_autoscale import get_running_instances_in_security_group, get_running_instances_in_autoscaling_group, file_contents, generate_haproxy_config, steal_elastic_ip
 import urllib2
 
 
 def main():
     # Parse up the command line arguments.
     parser = argparse.ArgumentParser(description='Update haproxy to use all instances running in a security group.')
-    parser.add_argument('--security-group', required=True, nargs='+', type=str)
+    parser.add_argument('--security-group', required=False, nargs='+', type=str)
     parser.add_argument('--access-key', required=True)
     parser.add_argument('--secret-key', required=True)
     parser.add_argument('--output', default='haproxy.cfg',
@@ -28,15 +28,30 @@ def main():
                         help='The Elastic IP to bind to when VIP seems unhealthy.')
     parser.add_argument('--health-check-url',
                         help='The URL to check. Assigns EIP to self if health check fails.')
+    parser.add_argument('--autoscaling-group',
+                        help='The AutoScaling Group that health instance located in.')
+    parser.add_argument('--region',
+                        help='The region that the SecurityGroup located in.')
     args = parser.parse_args()
 
     # Fetch a list of all the instances in these security groups.
     instances = {}
-    for security_group in args.security_group:
-        logging.info('Getting instances for %s.' % security_group)
-        instances[security_group] = get_running_instances(access_key=args.access_key,
-                                                          secret_key=args.secret_key,
-                                                          security_group=security_group)
+    if args.security_group:
+	    for security_group in args.security_group:
+		logging.info('Getting instances for %s.' % security_group)
+		instances[security_group] = get_running_instances_in_security_group(access_key=args.access_key,
+								  secret_key=args.secret_key,
+								  security_group=security_group,
+								  region=args.region)
+    if args.autoscaling_group:
+		autoscaling_group=args.autoscaling_group
+		logging.info('Getting instances for %s.' % autoscaling_group)
+		instances[autoscaling_group] = get_running_instances_in_autoscaling_group(access_key=args.access_key,
+								  secret_key=args.secret_key,
+								  autoscaling_group=autoscaling_group,
+								  region=args.region)
+    print(instances)
+	    
     # Generate the new config from the template.
     logging.info('Generating configuration for haproxy.')
     new_configuration = generate_haproxy_config(template=args.template,
@@ -80,7 +95,8 @@ def main():
                 logging.warn('Health check failed. Assigning %s to self.' % args.eip)
                 steal_elastic_ip(access_key=args.access_key,
                                  secret_key=args.secret_key,
-                                 ip=args.eip                )
+                                 ip=args.eip,
+				 region=args.region                )
     except:
         pass
 
